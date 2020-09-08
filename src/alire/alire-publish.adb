@@ -20,9 +20,9 @@ with Alire.TOML_Adapters;
 with Alire.TOML_Index;
 with Alire.TOML_Keys;
 with Alire.TOML_Load;
-with Alire.URI;
 with Alire.Utils.TTY;
 with Alire.Utils.User_Input;
+with Alire.VCSs.Git;
 
 with Semantic_Versioning;
 
@@ -378,6 +378,53 @@ package body Alire.Publish is
          Steps (Current) (Context);
       end loop;
    end Start_At;
+
+   ----------------------
+   -- Local_Repository --
+   ----------------------
+
+   procedure Local_Repository (Path   : Any_Path := ".";
+                               Commit : String   := "")
+   is
+      Root : constant Roots.Optional.Root := Roots.Optional.Search_Root (Path);
+      use all type VCSs.Git.States;
+      Git  : constant VCSs.Git.VCS := VCSs.Git.Handler;
+
+      ---------------
+      -- Git_Error --
+      ---------------
+
+      procedure Git_Error (Msg : String) is
+      begin
+         Raise_Checked_Error (Msg & " at " & TTY.URL (Path));
+      end Git_Error;
+
+   begin
+      if not Root.Is_Valid then
+         Raise_Checked_Error ("No Alire workspace found at " & TTY.URL (Path));
+      end if;
+
+      case Git.Status (Root.Value.Path) is
+         when No_Repo =>
+            Git_Error ("No git repository found");
+         when Clean =>
+            Verify_And_Create_Index_Manifest (Git.Fetch_URL (Root.Value.Path),
+                                              Commit);
+         when Ahead =>
+            Git_Error ("Repository has commits yet to be pushed");
+         when Dirty =>
+            if Commit = "" then
+               --  Since we are using the last commit, we cannot proceed with
+               --  missing changes:
+               Git_Error ("'git status' reports working tree not clean");
+            else
+               --  We don't mind pending changes as we're using a precise rev.
+               Verify_And_Create_Index_Manifest
+                 (Git.Fetch_URL (Root.Value.Path),
+                  Commit);
+            end if;
+      end case;
+   end Local_Repository;
 
    --------------------------------------
    -- Verify_And_Create_Index_Manifest --

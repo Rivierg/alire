@@ -26,6 +26,21 @@ package Alire.VCSs.Git is
                     Repo : Directory_Path)
                     return Outcome;
 
+   type States is (No_Repo, Clean, Ahead, Dirty);
+   --  Three states we are interested in for publishing: clean and up-to-date,
+   --  clean but not yet pushed, dirty. No_Repo is used when no repo found.
+
+   function Status (This : VCS;
+                    Repo : Directory_Path)
+                    return States;
+
+   function Fetch_URL (This   : VCS;
+                       Repo   : Directory_Path;
+                       Origin : String := "origin")
+                       return URL;
+   --  Retrieve the "fetch" url of the given origin, or "" if no repo, no
+   --  origin, or any other unforeseen circumstance.
+
 private
 
    type VCS is new VCSs.VCS with null record;

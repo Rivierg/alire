@@ -98,6 +98,30 @@ package body Alire.VCSs.Git is
          return Alire.Errors.Get (E);
    end Clone;
 
+   ---------------
+   -- Fetch_URL --
+   ---------------
+
+   function Fetch_URL (This   : VCS;
+                       Repo   : Directory_Path;
+                       Origin : String := "origin")
+                       return URL
+   is
+      Guard  : Directories.Guard (Directories.Enter (Repo)) with Unreferenced;
+      Output : constant Utils.String_Vector :=
+                 Run_Git_And_Capture (Empty_Vector & "remote" & "-v");
+   begin
+      for Line of Output loop
+         if Starts_With (Line, Origin) and then Ends_With (Line, "(fetch)")
+         then
+            return Trim (Line (Line'First + Origin'Length ..
+                               Line'Last - String'("(fetch)")'Length));
+         end if;
+      end loop;
+
+      return "";
+   end Fetch_URL;
+
    -----------------
    -- Is_Detached --
    -----------------
@@ -118,6 +142,39 @@ package body Alire.VCSs.Git is
       return not Output.Is_Empty
         and then Utils.Contains (Output.First_Element, "HEAD detached");
    end Is_Detached;
+
+   ------------
+   -- Status --
+   ------------
+
+   function Status (This : VCS;
+                    Repo : Directory_Path)
+                    return States
+   is
+      Guard  : Directories.Guard (Directories.Enter (Repo)) with Unreferenced;
+
+      --  Out_1 should be portable. Out_2 is used as last resort, I believe
+      --  git is not localized so it should work but since it relies on human
+      --  output it might break at any time I guess. Worst case, we would
+      --  report an 'Ahead' as 'Dirty'.
+
+      Out_1 : constant Utils.String_Vector :=
+                 Run_Git_And_Capture (Empty_Vector & "status" & "--porcelain");
+      Out_2 : constant String :=
+                 Run_Git_And_Capture (Empty_Vector & "status").Flatten;
+   begin
+      if Trim (Out_1.Flatten) = "" then
+         return Clean;
+      elsif Contains (Out_2, "Your branch is ahead of") then
+         return Ahead;
+      else
+         return Dirty;
+      end if;
+   exception
+      when E : others =>
+         Log_Exception (E);
+         return No_Repo;
+   end Status;
 
    ------------
    -- Update --
