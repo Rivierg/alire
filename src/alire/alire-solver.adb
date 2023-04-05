@@ -866,19 +866,23 @@ package body Alire.Solver is
                     " when tree is " &
                     Image_One_Line (State));
 
-               Expand ((Id        => <>,
-                        Parent    => State.Id,
-                        Seen      => State.Seen.Union (To_Set (Raw_Dep)),
-                        Expanded  => State.Expanded and Dep,
-                        Target    => State.Remaining and
-                          (if Pins.State (Dep.Crate).Has_Release
-                           then Pins.State (Dep.Crate)
-                                    .Release.Dependencies (Props)
-                           else Empty),
-                        Remaining => Empty,
-                        Solution  =>
-                          Solution.Linking (Dep.Crate,
-                                            Pins.State (Dep.Crate).Link)));
+               declare
+                  Other_Deps : Conditional.Dependencies := Empty;
+               begin
+                  if Pins.State (Dep.Crate).Has_Release then
+                     Other_Deps :=
+                        Pins.State (Dep.Crate).Release.Dependencies (Props);
+                  end if;
+                  Expand ((Id        => <>,
+                           Parent    => State.Id,
+                           Seen      => State.Seen.Union (To_Set (Raw_Dep)),
+                           Expanded  => State.Expanded and Dep,
+                           Target    => State.Remaining and Other_Deps,
+                           Remaining => Empty,
+                           Solution  =>
+                             Solution.Linking (Dep.Crate,
+                                               Pins.State (Dep.Crate).Link)));
+               end;
                return;
             end if;
 

@@ -937,7 +937,6 @@ package body Alire.Crate_Configuration is
          else
             Raise_Checked_Error ("Invalid profile value: " & TTY.Error (Img)
                                  & " in profile list: " & Parse_Profiles.Img);
-            raise Program_Error; -- Unreachable
          end if;
       end To_Profile;
 
